@@ -89,8 +89,7 @@ sqliteview/
 └── app/                            git root: the app, its docs and all config
     ├── .gitignore                  node_modules/, out/, dist/, test-results/, .env
     ├── .github/workflows/
-    │   ├── ci.yml                  typecheck, lint, unit, e2e on Windows/macOS/Linux
-    │   └── release.yml             changesets "Version packages" PR; on tag: build installers + GitHub Release
+    │   └── ci.yml                  typecheck, lint, unit, e2e on Windows/macOS/Linux
     ├── CLAUDE.md                   project rules
     ├── PLAN.md                     this file
     ├── DESIGN.md                   design system (source of truth for tokens)
@@ -306,13 +305,13 @@ Every phase ends with `typecheck`, `lint`, unit and e2e tests green, the app run
 | 6 | **Import/export**: CSV import with live preview, export CSV/JSON/SQL/Markdown/TSV, SQL dump and import | Round-trip tests pass; `io.spec.ts` |
 | 7 | **Formats, plot, projects, CLI**: display/conditional formats, plot panel, `.sqbpro` open/save, CLI flags | `test_formats_plot.py`, `test_project.py` ported |
 | 8 | **MCP server for Claude Code**: Streamable HTTP on 127.0.0.1 with a token, data and UI tools, Preferences page, on/off | `mcp.spec.ts` with the SDK's HTTP client: opens tables, edits show as uncommitted, Revert undoes them, writing asks |
-| 9 | **Packaging + release**: electron-builder for Win/macOS/Linux, `.db`/`.sqlite` file association, changesets release workflow | Installers build in CI from a version tag |
+| 9 | **Packaging + release**: electron-builder for Win/macOS/Linux, `.db`/`.sqlite` file association, changesets versioning | `npm run dist` builds the installer for the current OS |
 
 Phase 8 only depends on phases 0–2, so it can move earlier if you want Claude Code sooner.
 
 **Release flow (Changesets):** each PR with a user-facing change runs `npx changeset` (patch/minor/major + one
-line). On `main`, the release workflow opens a "Version packages" PR that bumps `package.json` and writes
-`CHANGELOG.md`. Merging it tags `v<version>`, which builds the installers and publishes the GitHub Release.
+line). To release, run `npx changeset version` locally: it bumps `package.json` and writes `CHANGELOG.md`.
+Commit that, then `npx changeset tag` tags `v<version>`; build installers with `npm run dist`.
 `app` is a private package, so `.changeset/config.json` sets `privatePackages: { version: true, tag: true }`.
 
 ---

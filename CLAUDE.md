@@ -152,7 +152,7 @@ These rules add to the global ones in `~/.claude/CLAUDE.md`.
 
 - Every change a user would notice adds a changeset (`npx changeset`): patch for fixes, minor for
   features. Internal-only changes (tests, refactors, CI) don't need one.
-- Never edit `version` in `package.json` or `CHANGELOG.md` by hand; the release workflow does that.
+- Never edit `version` in `package.json` or `CHANGELOG.md` by hand; `npx changeset version` does that.
 
 ## Commands (run from this folder)
 
