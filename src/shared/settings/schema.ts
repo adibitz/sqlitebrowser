@@ -66,9 +66,9 @@ export const settingsSchema = z.object({
   'extensions/disableregex': z.boolean().default(false),
   'extensions/enable_load_extension': z.boolean().default(false),
   'MainWindow/bounds': windowBounds.nullable().default(null),
-  'ai/enabled': z.boolean().default(false),
-  'ai/activeProviderId': z.number().int().positive().nullable().default(null),
-  'ai/activeModel': z.string().max(200).default(''),
+  // The MCP server Claude Code (or another MCP client) connects to; off until the user turns it on.
+  'MCP/enabled': z.boolean().default(false),
+  'MCP/port': z.number().int().min(1024).max(65535).default(3940),
 })
 
 export type Settings = z.infer<typeof settingsSchema>

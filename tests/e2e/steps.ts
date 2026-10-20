@@ -10,7 +10,7 @@ export async function quitDiscarding(app: ElectronApplication): Promise<void> {
   await app.close()
 }
 
-/** Accepts the onboarding defaults (System theme, AI off). `welcome`: expect the start page next. */
+/** Accepts the onboarding defaults (System theme, Claude Code off). `welcome`: expect the start page next. */
 export async function finishOnboarding(page: Page, { welcome = true } = {}): Promise<void> {
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('button', { name: 'Finish' }).click()

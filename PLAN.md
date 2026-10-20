@@ -1,10 +1,10 @@
 # SQliteView for Electron: port plan
 
 Port the Python/PySide6 app in `../reference/` (github.com/adibitz/SQLiteView) to an Electron + React + TypeScript
-desktop app in this folder, then add an **AI chat panel** that works with the open database through **MCP**.
-All user preferences, recent files, AI settings and chat history live in a local **SQLite** file.
+desktop app in this folder, then add an **MCP server** so Claude Code (or any MCP client) can work with the open
+database and drive the window. All user preferences, recent files and the MCP token live in a local **SQLite** file.
 
-Guiding rule: **port what exists, add only the chat feature, keep it simple.** No plugin systems, no routing
+Guiding rule: **port what exists, add only the MCP server, keep it simple.** No plugin systems, no routing
 library (one window, document tabs), no extra state framework. Simple does not mean big files: code is split
 into small, single-purpose files grouped by area (see § 3).
 
@@ -22,18 +22,16 @@ into small, single-purpose files grouped by area (see § 3).
 | Animation | **Motion** (formerly Framer Motion, `motion/react`). Fast: 120–200ms, expo-out, `MotionConfig reducedMotion="user"`; durations/easings only from `lib/motion.ts` | Enter/exit for dialogs, panels, toasts, onboarding steps |
 | Icons | **lucide-react** (stroke 1.75) | Matches the spec |
 | Font | DM Sans, bundled locally (from `../reference/sqliteview/assets/fonts`) | Offline desktop app |
-| State | **zustand** for all shared state (one store per area: workspace, settings, chat) | Asked for; small, no boilerplate |
+| State | **zustand** for all shared state (one store per area: workspace, settings, tabs) | Asked for; small, no boilerplate |
 | Validation | **zod** (already a dependency of the MCP SDK) | One schema validates IPC arguments and MCP tool inputs |
-| SQLite engine | **better-sqlite3** in a **worker thread** owned by main, `safeIntegers` on | Sync, fast, custom functions (`REGEXP`, `sqlb_make_single_value`), `stmt.readonly` for AI read-only checks; worker keeps the window responsive; 64-bit integers stay exact |
+| SQLite engine | **better-sqlite3** in a **worker thread** owned by main, `safeIntegers` on | Sync, fast, custom functions (`REGEXP`, `sqlb_make_single_value`), `stmt.readonly` for MCP read-only checks; worker keeps the window responsive; 64-bit integers stay exact |
 | Data grid | Own `DataGrid` on **@tanstack/react-virtual** | Only visible rows render; paging stays in our control |
 | SQL editor | **CodeMirror 6** + `@codemirror/lang-sql` | Schema autocomplete, much lighter than Monaco |
 | Plot | **uPlot** | Small and fast; line/scatter/bars |
 | CSV | Own small incremental parser (`shared/csv/csvParser.ts`) | Matches the Python app's `csv` module rules (strict=False, quoting off) and streams large files; type detection is our own port |
-| Chat text | **react-markdown** + **remark-gfm** | Assistant replies with Markdown tables; raw HTML is not rendered |
-| MCP | **@modelcontextprotocol/sdk** | Official SDK: in-process server + client |
-| AI providers | **@anthropic-ai/sdk** + **openai** SDK with custom `baseURL` | Two adapters cover Claude, OpenAI, OpenRouter, LM Studio and Ollama (`http://localhost:11434/v1`) |
+| MCP | **@modelcontextprotocol/sdk** | Official SDK: Streamable HTTP server for Claude Code |
 | Unit tests | **Vitest**, run under Electron's Node (`ELECTRON_RUN_AS_NODE=1`) so the Electron build of `better-sqlite3` loads | Port the pytest suites 1:1 |
-| E2E tests | **Playwright** (`_electron.launch`) against the built app, temp `userData`, demo DB, fake AI server | Tests the real window, IPC and worker together |
+| E2E tests | **Playwright** (`_electron.launch`) against the built app, temp `userData`, demo DB, the SDK's HTTP client for MCP | Tests the real window, IPC and worker together |
 | Lint / format | ESLint (flat config, typescript-eslint, react-hooks) + Prettier | Standard |
 | Versioning | **Changesets** (`@changesets/cli`) | Every user-facing change adds a changeset; versions and `CHANGELOG.md` are generated |
 | Packaging | **electron-builder** (Win NSIS + zip, macOS dmg, Linux AppImage + tar.gz) | Same outputs as the Python release |
@@ -59,7 +57,7 @@ for landing pages), Monaco, an ORM, `electron-store`.
 │ ipc/<area>.ts: validate (zod) → forward                      │
 │ window, menus, dialogs, CLI args, file associations          │
 │ prefs/ (app.db, small sync queries)                          │
-│ ai/: chat loop, providers, MCP client + MCP server           │
+│ mcp/: MCP server on 127.0.0.1 for Claude Code                │
 └───────────────▲──────────────────────────────────────────────┘
                 │ typed RPC over postMessage (worker/rpc.ts)
 ┌───────────────┴──────────── DB worker (worker_threads) ──────┐
@@ -73,12 +71,12 @@ for landing pages), Monaco, an ORM, `electron-store`.
   `app` (window, theme, menu commands), `files` (dialogs, recent files, drag & drop), `db` (open/create/close,
   attach, write/revert, state), `schema` (tree, create/alter/drop, indices, pragmas), `rows` (page, count,
   edit, add/delete, copy), `sql` (execute, log), `io` (CSV import, exports, dump), `project` (`.sqbpro`),
-  `prefs` (settings), `ai` (providers, models, chat, approvals, history).
+  `prefs` (settings), `mcp` (server status, connect command, token, window requests from MCP tools).
 - Each contract file declares its **invoke methods** (request → response) and its **events**
-  (main → renderer pushes such as `db:stateChanged`, `sql:progress`, `ai:chunk`), plus the zod schemas.
+  (main → renderer pushes such as `db:stateChanged`, `sql:progress`, `mcp:uiRequest`), plus the zod schemas.
   `shared/ipc/index.ts` only combines the areas into the `WindowApi` type.
 - The renderer never builds file paths and never runs SQL directly.
-- The MCP server calls the **same** worker handlers as the UI, so AI edits land inside the same `SAVEPOINT`,
+- The MCP server calls the **same** worker handlers as the UI, so MCP edits land inside the same `SAVEPOINT`,
   show up as "Uncommitted changes", and **Write Changes / Revert** cover them.
 
 ---
@@ -113,8 +111,8 @@ sqliteview/
     │   │   ├── ipc/
     │   │   │   ├── index.ts        WindowApi = all areas combined (types only)
     │   │   │   ├── app.ts  files.ts  db.ts  schema.ts  rows.ts
-    │   │   │   ├── sql.ts  io.ts  project.ts  prefs.ts  ai.ts
-    │   │   ├── types/              schema.ts, rows.ts, filters.ts, chat.ts, values.ts
+    │   │   │   ├── sql.ts  io.ts  project.ts  prefs.ts  mcp.ts
+    │   │   ├── types/              schema.ts, rows.ts, filters.ts, mcp.ts, values.ts
     │   │   ├── settings/           keys.ts, defaults.ts (port of core/settings.py DEFAULTS)
     │   │   ├── sqlb/               identifier.ts  field.ts  constraints.ts  table.ts  indexDef.ts  trigger.ts
     │   │   ├── parser/             tokenizer.ts  createTable.ts  createIndex.ts  (both used by worker and dialogs)
@@ -129,7 +127,7 @@ sqliteview/
     │   │   ├── ipc/
     │   │   │   ├── register.ts     registers every area
     │   │   │   ├── handle.ts       helper: ipcMain.handle + zod parse + error mapping
-    │   │   │   └── app.ts  files.ts  db.ts  schema.ts  rows.ts  sql.ts  io.ts  project.ts  prefs.ts  ai.ts
+    │   │   │   └── app.ts  files.ts  db.ts  schema.ts  rows.ts  sql.ts  io.ts  project.ts  prefs.ts  mcp.ts
     │   │   ├── worker/
     │   │   │   ├── entry.ts        worker_threads entry, routes requests to handlers
     │   │   │   ├── rpc.ts          main-side client: call(area.method, args) → Promise
@@ -143,20 +141,19 @@ sqliteview/
     │   │   ├── prefs/
     │   │   │   ├── database.ts     open app.db, foreign_keys on, run migrations
     │   │   │   ├── migrations.ts   numbered list, applied via PRAGMA user_version
-    │   │   │   └── settings.ts  recentFiles.ts  providers.ts  chatHistory.ts
-    │   │   └── ai/
-    │   │       ├── secrets.ts      safeStorage encrypt/decrypt
-    │   │       ├── providers/      provider.ts (ChatProvider interface), anthropic.ts, openaiCompatible.ts
-    │   │       ├── mcp/
-    │   │       │   ├── server.ts   builds the McpServer, registers tools
-    │   │       │   ├── client.ts   in-memory transport client
-    │   │       │   └── tools/      listTables.ts  describeTable.ts  sampleRows.ts  runQuery.ts  runSql.ts
-    │   │       └── chat/
-    │   │           ├── loop.ts     tool loop: provider ⇄ MCP client, streams ai:chunk events
-    │   │           └── approvals.ts pending write approvals (resolved by ai:approve / ai:deny)
+    │   │   │   └── settings.ts  recentFiles.ts  secretValues.ts
+    │   │   ├── secrets.ts          safeStorage encrypt/decrypt
+    │   │   └── mcp/
+    │   │       ├── service.ts      starts, moves and stops the server from the settings
+    │   │       ├── httpServer.ts   Streamable HTTP on 127.0.0.1: Host/Origin/token checks, stateless
+    │   │       ├── buildServer.ts  McpServer with every tool
+    │   │       ├── uiBridge.ts     tool → window requests (mcp:uiRequest / mcp:reply)
+    │   │       ├── token.ts  connectCommand.ts  confirmWrite.ts  workerDatabase.ts
+    │   │       └── tools/          one per tool: getAppState, listTables, describeTable, sampleRows, runQuery,
+    │   │                           runSql, revertChanges, writeChanges, openDatabase, openTable, openSqlEditor
     │   ├── preload/
     │   │   ├── index.ts            contextBridge.exposeInMainWorld('api', …)
-    │   │   └── api/                app.ts  files.ts  db.ts  schema.ts  rows.ts  sql.ts  io.ts  project.ts  prefs.ts  ai.ts
+    │   │   └── api/                app.ts  files.ts  db.ts  schema.ts  rows.ts  sql.ts  io.ts  project.ts  prefs.ts  mcp.ts
     │   └── renderer/
     │       ├── index.html
     │       └── src/
@@ -168,25 +165,23 @@ sqliteview/
     │           │   ├── theme.css   @theme inline: tokens → Tailwind utilities; @custom-variant dark
     │           │   └── fonts.css   @font-face DM Sans
     │           ├── lib/            cn.ts  api.ts  motion.ts (durations/easings)  hooks/
-    │           ├── store/          workspace.ts  settings.ts  chat.ts  (zustand)
+    │           ├── store/          workspace.ts  settings.ts  tabs.ts  (zustand)
     │           ├── components/ui/  shadcn/ui components (button, input, select, switch, dialog, dropdown-menu,
     │           │                   tooltip, badge, sonner, skeleton, resizable, …), restyled to tokens
     │           └── features/       one folder per feature; components, hooks and helpers live inside it
-    │               ├── onboarding/ OnboardingFlow, ThemeStep, AiStep
+    │               ├── onboarding/ OnboardingFlow, ThemeStep, McpStep
     │               ├── welcome/  explorer/  inspector/  schema/  dbinfo/  log/  plot/  palette/  preferences/
     │               ├── table/      DataGrid, GridHeader, FilterRow, FilterBuilder, FilterChips, Pagination, SelectionBar
     │               ├── sql/        SqlTab, SqlEditor, ResultsPane, FindBar
     │               ├── dialogs/    EditTable, EditIndex, ImportCsv, ExportData, ExportSql, AddRecord,
     │               │               DisplayFormat, CondFormat, RecordView
-    │               └── chat/       ChatPanel, ModelBadge, ModelPicker, MessageList, Message, ToolCallCard,
-    │                               ApprovalCard, Composer
+    │               └── mcp/        useMcpBridge, uiActions, uiSnapshot, describeTab (window side of the MCP tools)
     └── tests/
         ├── fixtures/               makeDemoDb.ts (port of scripts/make_demo_db.py), tempDir.ts
         ├── unit/                   core/, prefs/, shared/ (Vitest; ports of tests/test_*.py)
         └── e2e/                    Playwright
             ├── launch.ts           launches the built app with temp userData + demo DB
-            ├── fakeAiServer.ts     local OpenAI-compatible server with scripted replies
-            └── smoke.spec.ts  browse.spec.ts  sql.spec.ts  schema.spec.ts  io.spec.ts  chat.spec.ts
+            └── smoke.spec.ts  browse.spec.ts  sql.spec.ts  schema.spec.ts  io.spec.ts  mcp.spec.ts
 ```
 
 ---
@@ -220,50 +215,50 @@ Shown once, before anything else, when `General/onboarded` is not set. Only what
 skippable with sensible defaults, and changeable later in Preferences:
 
 1. **Theme**: System / Light / Dark (live preview).
-2. **AI assistant**: Off (default) / On. If On: provider (Claude, or OpenAI-compatible such as OpenAI, Ollama,
-   LM Studio), API key (or base URL for local servers), model (default `claude-sonnet-5-5` for Claude).
+2. **Claude Code**: Off (default) / On. On starts the MCP server; the connect command is in Preferences.
 
 Then the start page: Open database / New database / recent files. Nothing is opened or created automatically.
 
 ---
 
-## 6. New feature: AI chat over MCP
+## 6. New feature: MCP server for Claude Code
+
+The app has no chat and no AI provider code. Claude Code (or any MCP client) brings the model and connects to
+an MCP server inside the app.
 
 **What the user sees**
-- A **chat panel** docked on the right, toggled with a toolbar button and `Ctrl+J`.
-- A global **AI on/off switch** in Preferences → AI. Off = no panel, no network calls, MCP server not created.
-- The panel header shows **which model is running** (`Claude · claude-sonnet-5-5`, `Ollama · llama3.1`) with a
-  picker. The picker lists models from the provider's models endpoint and also accepts a typed model id.
-- Messages stream in. Each tool call is a compact card (*"Ran query on `orders` · 42 rows"*), expandable to the
-  SQL and a small result table.
-- **Writes need approval:** an **Approve / Deny** card with the exact SQL. Reads run without asking.
-- A **Stop** button cancels the current reply. Chat history is kept **per database file** and can be cleared.
+- Preferences → Claude Code (MCP): on/off (off by default), port (3940), the server status, **Copy Claude Code
+  command** (`claude mcp add --transport http --scope user sqliteview http://127.0.0.1:<port>/mcp --header
+  "Authorization: Bearer <token>"`) and **New token**.
+- The window follows what Claude Code does: tables open with its filters, SQL editors open (and run), edits
+  show as "Uncommitted changes" and the grids reload.
+- Writing to disk (`write_changes`) asks with a native dialog. Edits and reverts don't ask: Revert undoes them.
 
 **How it works**
-- `ai/mcp/server.ts` registers tools from `ai/mcp/tools/*`, each a thin wrapper over a worker handler:
-  `list_tables`, `describe_table`, `sample_rows`, `run_query` (must pass `stmt.readonly`, row cap),
-  `run_sql` (write, waits for approval).
-- `ai/mcp/client.ts` connects to that server over the SDK's in-memory transport.
-- `ai/chat/loop.ts` sends the conversation and tool list to the selected `ChatProvider`, executes tool calls
-  through the MCP client, streams `ai:chunk` / `ai:toolCall` / `ai:approvalNeeded` events, saves each message to
-  `app.db`.
-- The renderer sends the **active context** (open tab, filters, selection) with each user message, so main
-  never has to query UI state.
-- Optional, later: "Let other apps use this database" exposes the same MCP server on localhost (Streamable HTTP
-  + random token) so Claude Desktop/Code can connect.
+- `mcp/httpServer.ts`: Streamable HTTP on `127.0.0.1`, stateless (a new `McpServer` per POST). Before the SDK
+  sees a request it checks the path, the `Host` header (DNS rebinding), that there is no `Origin` header
+  (browsers) and the bearer token (constant-time compare).
+- `mcp/service.ts` starts, moves and stops the server when `MCP/enabled` or `MCP/port` change, and pushes its
+  status (`mcp:statusChanged`).
+- Data tools (`get_app_state`, `list_tables`, `describe_table`, `sample_rows`, `run_query`, `run_sql`,
+  `revert_changes`, `write_changes`) call the same worker handlers as the UI, so edits land in the open savepoint.
+- UI tools (`open_database`, `open_table`, `open_sql_editor`) go through `mcp/uiBridge.ts`: main pushes
+  `mcp:uiRequest`, the renderer runs the same actions as the UI (`features/mcp/uiActions.ts`) and answers with
+  `mcp:reply`. The renderer reports its tabs (`mcp:reportUi`) for `get_app_state`.
+- After an edit or revert main sends `db:dataChanged`; the renderer reloads grids and drops tabs of tables that
+  went away.
 
 **Safety**
-- API keys are encrypted with `safeStorage` before they are written to `app.db`, never sent back to the renderer,
-  never logged. If `safeStorage` is unavailable (some Linux setups), the key is kept in memory for the session
-  only and the UI says so.
-- Read-only databases (`-R`) reject AI writes outright. Denied or timed-out approvals return an error to the model.
+- The token is encrypted with `safeStorage` in the `secrets` table, never sent to the renderer (main copies the
+  command to the clipboard itself) and never logged. Without `safeStorage` it lasts for the session only.
+- Read-only databases (`-R`) reject edits. `run_query` only runs statements SQLite reports as read-only.
 
 ---
 
 ## 7. Preferences database (`app.db` in Electron `userData`)
 
 ```sql
--- migration 1 (PRAGMA user_version = 1)
+-- migration 1 (PRAGMA user_version = 1); migration 2 drops the chat tables and adds `secrets`
 CREATE TABLE settings      (key TEXT PRIMARY KEY, value TEXT NOT NULL);              -- JSON; keys as in core/settings.py ('General/theme')
 CREATE TABLE recent_files  (path TEXT PRIMARY KEY, opened_at TEXT NOT NULL, read_only INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE ai_providers  (id INTEGER PRIMARY KEY,
@@ -283,7 +278,14 @@ CREATE INDEX chat_sessions_db_path ON chat_sessions(db_path);
 CREATE INDEX chat_messages_session ON chat_messages(session_id);
 ```
 
-Window bounds, panel sizes, theme, density, AI on/off, active provider and model are rows in `settings`.
+```sql
+-- migration 2
+DROP TABLE chat_messages; DROP TABLE chat_sessions; DROP TABLE ai_providers;
+DELETE FROM settings WHERE key LIKE 'ai/%';
+CREATE TABLE secrets (name TEXT PRIMARY KEY, value BLOB NOT NULL);                    -- safeStorage-encrypted
+```
+
+Window bounds, panel sizes, theme, density and the MCP settings (`MCP/enabled`, `MCP/port`) are rows in `settings`.
 Migrations are append-only; the version lives in `PRAGMA user_version` (no extra table).
 `SQLITEVIEW_USER_DATA` (env) overrides the `userData` folder, used by Playwright so tests never touch real prefs.
 
@@ -295,7 +297,7 @@ Every phase ends with `typecheck`, `lint`, unit and e2e tests green, the app run
 
 | # | Phase | Done when |
 |---|---|---|
-| 0 | **Scaffold**: `git init` in `app/`, electron-vite React TS, Tailwind v4 CSS-first + tokens (light/dark) + DM Sans, shadcn/ui + Motion, onboarding (theme, AI on/off + provider), ESLint/Prettier, Vitest under Electron, Playwright with `launch.ts`, Changesets, better-sqlite3 rebuilt for Electron, worker + RPC, IPC folder with `app` and `prefs` areas, `app.db` + migrations, theme toggle (system/light/dark), CI workflow | First launch shows onboarding; answers persist and it doesn't show again (e2e); CI green |
+| 0 | **Scaffold**: `git init` in `app/`, electron-vite React TS, Tailwind v4 CSS-first + tokens (light/dark) + DM Sans, shadcn/ui + Motion, onboarding (theme, Claude Code on/off), ESLint/Prettier, Vitest under Electron, Playwright with `launch.ts`, Changesets, better-sqlite3 rebuilt for Electron, worker + RPC, IPC folder with `app` and `prefs` areas, `app.db` + migrations, theme toggle (system/light/dark), CI workflow | First launch shows onboarding; answers persist and it doesn't show again (e2e); CI green |
 | 1 | **Core engine port** (`db/*`, `sqlb/*`, `parser/*`, `query`, `filters`, `sqlsplit`, `data`) with `test_core.py` ported | Ported core tests pass |
 | 2 | **Shell**: welcome page + recent files + drag & drop, Explorer, document tabs, status bar (uncommitted changes), command palette `Ctrl+K`, density | Open/create/close DB, Write/Revert (e2e) |
 | 3 | **Browse**: virtual grid, pagination, filter row, filter builder + chips, multi-sort, cell edit, add/delete rows, Inspector (text/JSON/hex/image), multi-select + copy as CSV/TSV/JSON/SQL/Markdown, row details, full-screen grid | `test_browse_features.py` ported; `browse.spec.ts` |
@@ -303,10 +305,10 @@ Every phase ends with `typecheck`, `lint`, unit and e2e tests green, the app run
 | 5 | **Schema**: edit table (alter-table emulation), edit index, DB info + pragmas, attach DB | Alter-table tests pass; `schema.spec.ts` |
 | 6 | **Import/export**: CSV import with live preview, export CSV/JSON/SQL/Markdown/TSV, SQL dump and import | Round-trip tests pass; `io.spec.ts` |
 | 7 | **Formats, plot, projects, CLI**: display/conditional formats, plot panel, `.sqbpro` open/save, CLI flags | `test_formats_plot.py`, `test_project.py` ported |
-| 8 | **AI chat + MCP**: providers, MCP server/client, chat panel, approval cards, history in `app.db`, on/off switch | `chat.spec.ts` against the fake AI server: answers from the demo DB; a write needs approval and Revert undoes it |
+| 8 | **MCP server for Claude Code**: Streamable HTTP on 127.0.0.1 with a token, data and UI tools, Preferences page, on/off | `mcp.spec.ts` with the SDK's HTTP client: opens tables, edits show as uncommitted, Revert undoes them, writing asks |
 | 9 | **Packaging + release**: electron-builder for Win/macOS/Linux, `.db`/`.sqlite` file association, changesets release workflow | Installers build in CI from a version tag |
 
-Phase 8 only depends on phases 0–2, so it can move earlier if you want to see the chat sooner.
+Phase 8 only depends on phases 0–2, so it can move earlier if you want Claude Code sooner.
 
 **Release flow (Changesets):** each PR with a user-facing change runs `npx changeset` (patch/minor/major + one
 line). On `main`, the release workflow opens a "Version packages" PR that bumps `package.json` and writes

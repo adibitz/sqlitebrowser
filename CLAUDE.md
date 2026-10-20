@@ -1,6 +1,7 @@
 # SQliteView (Electron) — project rules
 
-Electron + React + TypeScript port of the Python/PySide6 app in `../reference/`, plus an AI chat panel over MCP.
+Electron + React + TypeScript port of the Python/PySide6 app in `../reference/`, plus an MCP server so Claude Code can
+drive it.
 Read `PLAN.md` for the architecture, folder structure and phases. `DESIGN.md` is the design source of truth.
 These rules add to the global ones in `~/.claude/CLAUDE.md`.
 
@@ -29,20 +30,20 @@ These rules add to the global ones in `~/.claude/CLAUDE.md`.
 ## IPC
 
 - The contract lives in `src/shared/ipc/`, **one file per area**: `app`, `files`, `db`, `schema`, `rows`, `sql`,
-  `io`, `project`, `prefs`, `ai`. Each file holds that area's channel names, request/response types, event
+  `io`, `project`, `prefs`, `mcp`. Each file holds that area's channel names, request/response types, event
   payload types and zod schemas. `shared/ipc/index.ts` only combines them into `WindowApi`.
 - The same area names repeat in `main/ipc/<area>.ts` (handlers), `preload/api/<area>.ts` (bridge) and
   `main/worker/handlers/<area>.ts`. A new area means a file in each place, never a section in an existing one.
 - Channel names are `<area>:<action>` and are written only in `shared/ipc/<area>.ts`.
 - Main handlers go through `main/ipc/handle.ts`: zod-validate the arguments, forward, map errors to a safe
   message. No business logic in handlers.
-- File paths reach main only from native dialogs, drag & drop, CLI args or recent files; the renderer never
-  builds a path.
+- File paths reach main only from native dialogs, drag & drop, CLI args, recent files or the MCP
+  `open_database` tool (checked in main with `requireExistingFile`); the renderer never builds a path.
 - Long work (queries, import, export, dump, alter table) runs in the DB worker, never on the main thread.
 
 ## Keep it simple
 
-- Build only what the Python app has, plus the AI chat. No speculative options, plugin systems or abstraction
+- Build only what the Python app has, plus the MCP server. No speculative options, plugin systems or abstraction
   layers for one caller.
 - Dependencies are the ones in `PLAN.md` § Stack. Adding another needs a one-line reason in the commit and must
   not duplicate an existing one.
@@ -50,7 +51,7 @@ These rules add to the global ones in `~/.claude/CLAUDE.md`.
 - **State: zustand.** Local `useState` for state one component owns; a zustand store in `renderer/src/store/`
   for anything shared. Select narrow slices (`useSettings(s => s.theme)`), never the whole store.
 - **No authentication** (local app). **No demo database** in the app; it exists only in `tests/fixtures/`.
-- First launch shows onboarding (theme, AI on/off + provider). Ask only what is required; every answer can be
+- First launch shows onboarding (theme, Claude Code on/off). Ask only what is required; every answer can be
   changed later in Preferences. Don't add steps without asking.
 
 ## Porting
@@ -71,31 +72,32 @@ These rules add to the global ones in `~/.claude/CLAUDE.md`.
   and `window.open` blocked; external links open via `shell.openExternal` after checking for `https:`.
 - SQL from code is parameterized. Identifiers go through the one quoting helper in `shared/sqlb/identifier.ts`
   (port of `escapeIdentifier`); never concatenate a name or value into SQL anywhere else.
-- SQL the user types in the editor runs as written (that is the feature). SQL from the AI must pass
-  `stmt.readonly` unless the user approved that exact statement in the chat.
-- API keys: encrypted with `safeStorage` in `main/ai/secrets.ts`. Never returned to the renderer after saving,
-  never logged, never in error messages.
-- No `dangerouslySetInnerHTML`. Cell values, AI output and schema names render as text. Markdown in chat uses
-  a renderer with raw HTML disabled.
+- SQL the user types in the editor runs as written (that is the feature). So does SQL from an MCP client's
+  `run_sql`: it lands in the open savepoint and Revert undoes it. `run_query` must pass `stmt.readonly`.
+- The MCP token: encrypted with `safeStorage` (`main/secrets.ts`) in the `secrets` table. Never sent to the
+  renderer (main copies the connect command to the clipboard itself), never logged, never in error messages.
+- The MCP server listens on 127.0.0.1 only and checks Host, Origin and the bearer token before the SDK sees a
+  request (`main/mcp/httpServer.ts`).
+- No `dangerouslySetInnerHTML`. Cell values and schema names render as text.
 
 ## Preferences database
 
-- All user preferences, recent files, AI providers and chat history live in `app.db` under Electron `userData`,
+- All user preferences, recent files and the MCP token live in `app.db` under Electron `userData`,
   accessed only through `main/prefs/*`.
 - Schema changes are new entries in `main/prefs/migrations.ts` (version in `PRAGMA user_version`); never edit a
   shipped migration.
 - No `localStorage`, JSON files or `electron-store` for preferences.
 
-## AI chat and MCP
+## MCP server (Claude Code)
 
-- The chat can be turned off globally (Preferences → AI). Off means no panel, no provider calls, no MCP server.
-- The panel header always shows the active provider and model.
-- One MCP tool per file in `main/ai/mcp/tools/`. Tools call the `ai.*` worker handlers (`core/aiTools.ts`),
-  which use the same engine as the UI: AI writes land in the open savepoint and Revert undoes them.
-- Write tools need an explicit Approve in the chat. Read-only databases reject AI writes.
-- Provider code stays behind `ChatProvider` (`main/ai/providers/provider.ts`), with two implementations:
-  Anthropic and OpenAI-compatible. Don't add a third without asking.
-- Default Claude model is `claude-sonnet-5-5`. Model ids are settings, not constants scattered in code.
+- There is no built-in chat and no AI provider code: outside MCP clients (Claude Code) bring the model.
+- Off by default (`MCP/enabled`, `MCP/port`); Preferences → Claude Code (MCP) starts, moves and stops it.
+- One MCP tool per file in `main/mcp/tools/`. Data tools call the `mcp.*` worker handlers
+  (`core/mcpTools.ts`), so edits land in the open savepoint like the UI's. UI tools go through
+  `main/mcp/uiBridge.ts` to `features/mcp/uiActions.ts`, which reuse the same actions as the UI.
+- Edits need no prompt (Revert undoes them); `write_changes` always asks the user with a native dialog.
+  Read-only databases reject edits.
+- After an MCP edit or revert main sends `db:dataChanged`, and the grids reload.
 
 ## Styling: Tailwind CSS v4
 
@@ -143,7 +145,7 @@ These rules add to the global ones in `~/.claude/CLAUDE.md`.
   files built by `tests/fixtures/makeDemoDb.ts`, not mocks.
 - **E2E (Playwright)** in `tests/e2e/`, one spec per feature area. Always launch through
   `tests/e2e/launch.ts` (temp `userData` via `SQLITEVIEW_USER_DATA`, fresh demo DB). Select elements by role and
-  accessible name, not CSS classes. AI specs use `tests/e2e/fakeAiServer.ts`, never a real provider.
+  accessible name, not CSS classes. MCP specs connect the SDK's HTTP client to the app on a free port.
 - A bug fix starts with a failing test. Every phase adds e2e coverage for what the user can now do.
 
 ## Versioning: Changesets

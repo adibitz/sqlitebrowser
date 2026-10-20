@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Wordmark } from '@/components/brand/Wordmark'
 import { fadeRise } from '@/lib/motion'
-import { AiStep } from './AiStep'
+import { McpStep } from './McpStep'
 import { ThemeStep } from './ThemeStep'
 
 const STEP_COUNT = 2
@@ -28,7 +28,7 @@ export function OnboardingFlow() {
         </header>
         <AnimatePresence mode="wait" initial={false}>
           <motion.div key={step} variants={fadeRise} initial="initial" animate="animate" exit="exit">
-            {step === 0 ? <ThemeStep onNext={() => setStep(1)} /> : <AiStep onBack={() => setStep(0)} />}
+            {step === 0 ? <ThemeStep onNext={() => setStep(1)} /> : <McpStep onBack={() => setStep(0)} />}
           </motion.div>
         </AnimatePresence>
       </div>

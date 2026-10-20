@@ -5,6 +5,7 @@ import type { RecentFile } from '@shared/types/files'
 import { api } from '@/lib/api'
 import { errorMessage } from '@/lib/errors'
 import { useLogStore } from './log'
+import { useTabsStore } from './tabs'
 
 interface DbStore {
   state: DbState
@@ -13,7 +14,7 @@ interface DbStore {
   sqliteVersion: string
   /** What the app is waiting for, e.g. "Opening customers.db"; null when idle. */
   busy: string | null
-  /** Bumped whenever table data may have changed outside the grid (revert, refresh, executed SQL). */
+  /** Bumped whenever table data may have changed outside the grid (revert, refresh, executed SQL, MCP). */
   dataVersion: number
   bumpDataVersion(): void
   setState(state: DbState): void
@@ -59,6 +60,11 @@ export function connectDbStore(): () => void {
   const offState = api.db.onState(setState)
   const offLog = api.db.onLog((entries) => useLogStore.getState().append(entries))
   const offWarning = api.db.onWarning((message) => toast.warning(message, { duration: 10_000 }))
+  // An MCP client changed data (or reverted): drop tabs of tables that went, reload the grids.
+  const offDataChanged = api.db.onDataChanged(() => {
+    useTabsStore.getState().pruneMissing(useDbStore.getState().state.schemata)
+    useDbStore.getState().bumpDataVersion()
+  })
   void api.db.getState().then(setState)
   void api.db.sqliteVersion().then((sqliteVersion) => useDbStore.setState({ sqliteVersion }))
   void refreshRecent()
@@ -66,5 +72,6 @@ export function connectDbStore(): () => void {
     offState()
     offLog()
     offWarning()
+    offDataChanged()
   }
 }

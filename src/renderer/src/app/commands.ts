@@ -26,7 +26,6 @@ import {
   ScrollTextIcon,
   SearchIcon,
   SettingsIcon,
-  SparklesIcon,
   TablePropertiesIcon,
   TerminalSquareIcon,
   Undo2Icon,
@@ -76,7 +75,6 @@ export function useCommands(): Command[] {
   const dirty = useDbStore((s) => s.state.dirty)
   const isMemory = useDbStore((s) => s.state.path === ':memory:')
   const writable = useDbStore((s) => s.state.isOpen && !s.state.readOnly)
-  const aiEnabled = useSettingsStore((s) => s.settings?.['ai/enabled'] ?? false)
   const schemata = useDbStore((s) => s.state.schemata)
   const activeObject = useTabsStore((s) => {
     const tab = s.tabs.find((t) => t.id === s.activeId)
@@ -266,14 +264,6 @@ export function useCommands(): Command[] {
         run: () => void openSqlFile(),
       },
       {
-        id: 'view.chat',
-        title: 'Show or hide the assistant',
-        icon: SparklesIcon,
-        shortcut: 'Mod+J',
-        enabled: isOpen && aiEnabled,
-        run: () => useUiStore.getState().toggleChat(),
-      },
-      {
         id: 'view.plot',
         title: 'Show or hide the plot',
         icon: ChartLineIcon,
@@ -345,7 +335,7 @@ export function useCommands(): Command[] {
         run: toggleTheme,
       },
     ],
-    [isOpen, dirty, isMemory, writable, activeTable, activeObject, aiEnabled],
+    [isOpen, dirty, isMemory, writable, activeTable, activeObject],
   )
 }
 

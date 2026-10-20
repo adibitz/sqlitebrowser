@@ -1,8 +1,8 @@
-import type { AiApi } from './ai'
 import type { AppApi } from './app'
 import type { DbApi } from './db'
 import type { FilesApi } from './files'
 import type { IoApi } from './io'
+import type { McpApi } from './mcp'
 import type { PrefsApi } from './prefs'
 import type { ProjectApi } from './project'
 import type { RowsApi } from './rows'
@@ -20,5 +20,5 @@ export interface WindowApi {
   schema: SchemaApi
   io: IoApi
   project: ProjectApi
-  ai: AiApi
+  mcp: McpApi
 }

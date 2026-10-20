@@ -4,9 +4,9 @@ import {
   CodeIcon,
   DatabaseIcon,
   type LucideIcon,
+  PlugIcon,
   PuzzleIcon,
   SettingsIcon,
-  SparklesIcon,
   TableIcon,
 } from 'lucide-react'
 import type { SettingKey } from '@shared/settings/schema'
@@ -19,8 +19,8 @@ export type PreferenceField =
   | { kind: 'folder'; key: SettingKey; label: string }
   | { kind: 'sql'; key: SettingKey; label: string; placeholder: string }
   | { kind: 'extensions'; key: SettingKey; label: string }
-  /** The provider list; saved at once (it isn't a setting). */
-  | { kind: 'aiProviders'; key: SettingKey; label: string }
+  /** The MCP server's status, the connect command and the token; acts at once (it isn't a setting). */
+  | { kind: 'mcpConnection'; key: SettingKey; label: string }
 
 export interface PreferencePage {
   id: string
@@ -138,13 +138,14 @@ export const PREFERENCE_PAGES: PreferencePage[] = [
     ],
   },
   {
-    id: 'ai',
-    title: 'AI assistant',
-    icon: SparklesIcon,
-    note: 'When it is off, the assistant panel is hidden and nothing is sent anywhere. Providers are saved as you add or remove them.',
+    id: 'mcp',
+    title: 'Claude Code (MCP)',
+    icon: PlugIcon,
+    note: 'Lets Claude Code read and change the open database and drive this window. It only listens on this computer. Changes apply when you save.',
     fields: [
-      { kind: 'bool', key: 'ai/enabled', label: 'Turn on the AI assistant' },
-      { kind: 'aiProviders', key: 'ai/activeProviderId', label: 'Providers' },
+      { kind: 'bool', key: 'MCP/enabled', label: 'Let Claude Code control SQliteView' },
+      { kind: 'int', key: 'MCP/port', label: 'Port', min: 1024, max: 65535 },
+      { kind: 'mcpConnection', key: 'MCP/enabled', label: 'Connection' },
     ],
   },
   {
@@ -159,7 +160,7 @@ export const PREFERENCE_PAGES: PreferencePage[] = [
   },
 ]
 
-/** Settings the dialog edits (and Save writes); the provider list is saved on its own. */
+/** Settings the dialog edits (and Save writes); the MCP connection control acts on its own. */
 export const PREFERENCE_KEYS: SettingKey[] = PREFERENCE_PAGES.flatMap((p) =>
-  p.fields.filter((f) => f.kind !== 'aiProviders').map((f) => f.key),
+  p.fields.filter((f) => f.kind !== 'mcpConnection').map((f) => f.key),
 )

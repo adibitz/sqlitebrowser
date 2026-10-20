@@ -89,7 +89,7 @@ export function PreferencesDialog() {
             <div className="grid grid-cols-[minmax(9rem,auto)_1fr] items-center gap-x-4 gap-y-3">
               {current.fields.map((field) => (
                 <PreferenceControl
-                  key={field.key}
+                  key={`${field.kind}:${field.key}`}
                   field={field}
                   value={draft[field.key]}
                   onChange={(value) => setDraft({ ...draft, [field.key]: value })}

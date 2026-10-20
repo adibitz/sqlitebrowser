@@ -2,17 +2,16 @@ import { join } from 'node:path'
 import { app, BrowserWindow } from 'electron'
 import { appEvents } from '@shared/ipc/app'
 import type { StartupRequest } from '@shared/types/app'
-import { osSecretBox } from './ai/secrets'
 import { emptyRequest, hasRequest, parseCli } from './cli'
 import { guardCloseWithPendingChanges } from './closeGuard'
 import { registerIpc } from './ipc/register'
 import { installMenu } from './menu'
 import { applyUserDataOverride } from './paths'
 import { openPrefsDb } from './prefs/database'
-import { createChatHistoryStore } from './prefs/chatHistory'
-import { createProviderStore } from './prefs/providers'
 import { createRecentFilesStore } from './prefs/recentFiles'
+import { createSecretValueStore } from './prefs/secretValues'
 import { createSettingsStore } from './prefs/settings'
+import { osSecretBox } from './secrets'
 import { applyTheme } from './theme'
 import { createMainWindow } from './window'
 import { startDbWorker } from './worker/rpc'
@@ -47,7 +46,6 @@ app.on('open-file', (event, path) => {
 app.whenReady().then(() => {
   const prefsDb = openPrefsDb(join(app.getPath('userData'), 'app.db'))
   const settings = createSettingsStore(prefsDb)
-  const providers = createProviderStore(prefsDb, osSecretBox)
   const recentFiles = createRecentFilesStore(prefsDb)
   const worker = startDbWorker()
   let win: BrowserWindow | null = null
@@ -55,19 +53,19 @@ app.whenReady().then(() => {
   installMenu()
   applyTheme(settings.get('General/theme'))
 
-  const { dbState, unsaved } = registerIpc({
+  const { dbState, unsaved, mcp } = registerIpc({
     settings,
-    providers,
-    history: createChatHistoryStore(prefsDb),
+    secretValues: createSecretValueStore(prefsDb, osSecretBox),
     recentFiles,
-    secrets: osSecretBox,
     worker,
     getWindow: () => win,
     startupRequest: hasRequest(cli.request) ? cli.request : null,
     onChange: (key) => {
       if (key === 'General/theme') applyTheme(settings.get('General/theme'))
+      if (key === 'MCP/enabled' || key === 'MCP/port') void mcp.apply()
     },
   })
+  void mcp.apply()
 
   const openWindow = (): BrowserWindow => {
     const w = createMainWindow({
@@ -99,6 +97,7 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) win = openWindow()
   })
   app.on('will-quit', () => {
+    void mcp.stop()
     void worker.stop()
     prefsDb.close()
   })

@@ -3,7 +3,7 @@ import Database from 'better-sqlite3'
 import { expect, test } from '@playwright/test'
 import { launchApp } from './launch'
 
-test('first launch asks for a theme and AI choice, then never again', async () => {
+test('first launch asks for a theme and the Claude Code choice, then never again', async () => {
   const first = await launchApp()
   const { page } = first
 
@@ -12,7 +12,7 @@ test('first launch asks for a theme and AI choice, then never again', async () =
   await expect(page.locator('html')).toHaveClass(/dark/)
   await page.getByRole('button', { name: 'Continue' }).click()
 
-  await expect(page.getByRole('heading', { name: 'AI assistant' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Claude Code' })).toBeVisible()
   await expect(page.getByRole('radio', { name: /Off/ })).toBeChecked()
   await page.getByRole('button', { name: 'Finish' }).click()
 
@@ -27,34 +27,24 @@ test('first launch asks for a theme and AI choice, then never again', async () =
   await second.app.close()
 })
 
-test('turning on Claude requires a key and stores it encrypted', async () => {
+test('turning on Claude Code saves the choice and starts the MCP server', async () => {
   const { app, page, userDataDir } = await launchApp()
 
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('radio', { name: /On/ }).click()
-  await expect(page.getByLabel('Model', { exact: true })).toHaveValue('claude-sonnet-5-5')
-
-  await page.getByRole('button', { name: 'Finish' }).click()
-  await expect(page.getByRole('alert')).toContainText('Enter your Anthropic API key')
-
-  const key = 'sk-ant-e2e-secret-value'
-  await page.getByLabel('API key', { exact: true }).fill(key)
-  await expect(page.getByRole('alert')).toHaveCount(0)
   await page.getByRole('button', { name: 'Finish' }).click()
   await expect(page.getByRole('heading', { name: /Open, browse, edit and query/ })).toBeVisible()
+
+  await page.keyboard.press('Control+,')
+  const prefs = page.getByRole('dialog', { name: 'Preferences' })
+  await prefs.getByRole('button', { name: 'Claude Code (MCP)' }).click()
+  await expect(prefs.getByRole('checkbox', { name: 'Let Claude Code control SQliteView' })).toBeChecked()
+  // Running, or (when another program holds the default port) a message that says so.
+  await expect(prefs.getByRole('status', { name: 'MCP server status' })).toHaveText(/Running at|in use/)
   await app.close()
 
   const db = new Database(join(userDataDir, 'app.db'), { readonly: true })
-  const provider = db.prepare('SELECT kind, default_model, api_key FROM ai_providers').get() as {
-    kind: string
-    default_model: string
-    api_key: Buffer | null
-  }
-  const enabled = db.prepare("SELECT value FROM settings WHERE key = 'ai/enabled'").pluck().get()
+  const enabled = db.prepare("SELECT value FROM settings WHERE key = 'MCP/enabled'").pluck().get()
   db.close()
-
-  expect(provider.kind).toBe('anthropic')
-  expect(provider.default_model).toBe('claude-sonnet-5-5')
   expect(enabled).toBe('true')
-  if (provider.api_key) expect(provider.api_key.toString('utf8')).not.toContain(key)
 })

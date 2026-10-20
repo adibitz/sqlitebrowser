@@ -2,17 +2,16 @@ import { useEffect } from 'react'
 import { Toaster } from '@/components/ui/sonner'
 import { DialogHost } from '@/components/dialogs/DialogHost'
 import { ModalHost } from '@/app/ModalHost'
-import { ChatPanel } from '@/features/chat/ChatPanel'
 import { PlotPanel } from '@/features/plot/PlotPanel'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { DocumentArea } from '@/features/documents/DocumentArea'
 import { LogPanel } from '@/features/log/LogPanel'
 import { Explorer } from '@/features/explorer/Explorer'
+import { useMcpBridge } from '@/features/mcp/useMcpBridge'
 import { CommandPalette } from '@/features/palette/CommandPalette'
 import { WelcomePage } from '@/features/welcome/WelcomePage'
 import { connectDbStore, useDbStore } from '@/store/db'
-import { useSetting } from '@/store/settings'
 import { useUiStore } from '@/store/ui'
 import { useCommands } from './commands'
 import { DropOverlay } from './DropOverlay'
@@ -22,7 +21,6 @@ import { useFileDrop } from './useFileDrop'
 import { useExitFullScreenOnEscape } from './useExitFullScreenOnEscape'
 import { useGlobalShortcuts } from './useGlobalShortcuts'
 import { useIdentifierQuoting } from './useIdentifierQuoting'
-import { useChatEvents } from './useChatEvents'
 import { useOpenRequests } from './useOpenRequests'
 import { useReportUnsavedDocuments } from './useReportUnsavedDocuments'
 
@@ -33,8 +31,6 @@ export function AppShell() {
   const fullScreen = useUiStore((s) => s.fullScreen)
   const logVisible = useUiStore((s) => s.logVisible)
   const plotVisible = useUiStore((s) => s.plotVisible)
-  const aiEnabled = useSetting('ai/enabled') ?? false
-  const chatVisible = useUiStore((s) => s.chatVisible) && aiEnabled
   const commands = useCommands()
   const dragging = useFileDrop()
   useGlobalShortcuts(commands)
@@ -42,7 +38,7 @@ export function AppShell() {
   useReportUnsavedDocuments()
   useIdentifierQuoting()
   useOpenRequests()
-  useChatEvents()
+  useMcpBridge()
   useEffect(() => connectDbStore(), [])
 
   return (
@@ -79,14 +75,6 @@ export function AppShell() {
                 <ResizableHandle />
                 <ResizablePanel id="plot" defaultSize={420} minSize={280} maxSize="60%">
                   <PlotPanel />
-                </ResizablePanel>
-              </>
-            )}
-            {chatVisible && !fullScreen && (
-              <>
-                <ResizableHandle />
-                <ResizablePanel id="chat" defaultSize={400} minSize={300} maxSize="50%">
-                  <ChatPanel />
                 </ResizablePanel>
               </>
             )}

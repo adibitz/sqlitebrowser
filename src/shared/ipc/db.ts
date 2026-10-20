@@ -21,6 +21,8 @@ export const dbEvents = {
   state: 'db:state',
   log: 'db:log',
   warning: 'db:warning',
+  /** Table data changed outside the UI (an MCP tool); grids reload. */
+  dataChanged: 'db:dataChanged',
 } as const
 
 const path = z.string().min(1).max(4096)
@@ -66,4 +68,5 @@ export interface DbApi {
   onState(listener: (state: DbState) => void): () => void
   onLog(listener: (entries: LogEntry[]) => void): () => void
   onWarning(listener: (message: string) => void): () => void
+  onDataChanged(listener: () => void): () => void
 }

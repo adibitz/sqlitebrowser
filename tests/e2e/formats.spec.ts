@@ -21,6 +21,8 @@ const cell = (page: Page, row: number, col: number) =>
 test('shows a column through a display format and keeps those cells read-only', async () => {
   const { app, page } = await launchWithDatabase()
   await openTable(page, 'customers')
+  // Cells are empty placeholders until the page of rows has loaded.
+  await expect(cell(page, 1, 1)).not.toBeEmpty()
   const before = (await cell(page, 1, 1).textContent()) ?? ''
   await columnMenu(page, 'name', 'Display format…')
   const dialog = page.getByRole('dialog', { name: 'Display format of name' })

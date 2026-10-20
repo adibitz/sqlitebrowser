@@ -1,5 +1,5 @@
 // Smoke test of the packaged app (`npm run test:packaged`): the DB worker loads better-sqlite3 from the
-// unpacked asar, the main process loads the AI libraries, and command line arguments work.
+// unpacked asar, the main process loads the MCP server library, and command line arguments work.
 /// <reference lib="dom" />
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'

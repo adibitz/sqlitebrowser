@@ -39,4 +39,15 @@ export const migrations: readonly string[] = [
   CREATE INDEX chat_sessions_db_path ON chat_sessions(db_path);
   CREATE INDEX chat_messages_session ON chat_messages(session_id);
   `,
+  // The built-in chat gave way to an MCP server for outside clients; its token is the only secret.
+  `
+  DROP TABLE chat_messages;
+  DROP TABLE chat_sessions;
+  DROP TABLE ai_providers;
+  DELETE FROM settings WHERE key LIKE 'ai/%';
+  CREATE TABLE secrets (
+    name  TEXT PRIMARY KEY,
+    value BLOB NOT NULL
+  );
+  `,
 ]

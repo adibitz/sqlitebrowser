@@ -18,4 +18,5 @@ export const dbApi: DbApi = {
   onState: (listener) => subscribe(dbEvents.state, listener),
   onLog: (listener) => subscribe(dbEvents.log, listener),
   onWarning: (listener) => subscribe(dbEvents.warning, listener),
+  onDataChanged: (listener) => subscribe(dbEvents.dataChanged, listener),
 }

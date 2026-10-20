@@ -41,7 +41,6 @@ export function Toolbar({ commands }: { commands: Command[] }) {
         <PaletteTrigger />
       </div>
       {isOpen && <CommandButton command={{ ...cmd('view.explorer'), icon: PanelLeftIcon }} iconOnly />}
-      {isOpen && cmd('view.chat').enabled && <CommandButton command={cmd('view.chat')} iconOnly />}
       {isOpen && <CommandButton command={cmd('view.plot')} iconOnly />}
       {isOpen && <CommandButton command={cmd('view.log')} iconOnly />}
       <CommandButton command={themeCommand} iconOnly />

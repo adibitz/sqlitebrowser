@@ -1,10 +1,10 @@
 import { contextBridge } from 'electron'
 import type { WindowApi } from '@shared/ipc'
-import { aiApi } from './api/ai'
 import { appApi } from './api/app'
 import { dbApi } from './api/db'
 import { filesApi } from './api/files'
 import { ioApi } from './api/io'
+import { mcpApi } from './api/mcp'
 import { prefsApi } from './api/prefs'
 import { projectApi } from './api/project'
 import { rowsApi } from './api/rows'
@@ -21,7 +21,7 @@ const api: WindowApi = {
   schema: schemaApi,
   io: ioApi,
   project: projectApi,
-  ai: aiApi,
+  mcp: mcpApi,
 }
 
 contextBridge.exposeInMainWorld('api', api)

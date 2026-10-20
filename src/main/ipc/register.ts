@@ -1,18 +1,23 @@
-import { registerAiIpc, type AiIpcDeps } from './ai'
+import type { McpService } from '../mcp/service'
 import { registerAppIpc, type AppIpcDeps, type UnsavedDocuments } from './app'
 import { registerDbIpc, type DbIpcDeps, type DbStateTracker } from './db'
 import { registerFilesIpc, type FilesIpcDeps } from './files'
 import { registerIoIpc } from './io'
+import { registerMcpIpc, type McpIpcDeps } from './mcp'
 import { registerProjectIpc } from './project'
 import { registerPrefsIpc, type PrefsIpcDeps } from './prefs'
 import { registerRowsIpc } from './rows'
 import { registerSchemaIpc } from './schema'
 import { registerSqlIpc } from './sql'
 
-export type IpcDeps = PrefsIpcDeps & Omit<AiIpcDeps, 'dbState'> & FilesIpcDeps & DbIpcDeps & AppIpcDeps
+export type IpcDeps = PrefsIpcDeps & Omit<McpIpcDeps, 'dbState'> & FilesIpcDeps & DbIpcDeps & AppIpcDeps
 
-/** Registers every IPC area; returns what the close guard needs to know. */
-export function registerIpc(deps: IpcDeps): { dbState: DbStateTracker; unsaved: UnsavedDocuments } {
+/** Registers every IPC area; returns what the close guard and the MCP server need. */
+export function registerIpc(deps: IpcDeps): {
+  dbState: DbStateTracker
+  unsaved: UnsavedDocuments
+  mcp: McpService
+} {
   const unsaved = registerAppIpc(deps)
   registerPrefsIpc(deps)
   registerFilesIpc(deps)
@@ -22,6 +27,6 @@ export function registerIpc(deps: IpcDeps): { dbState: DbStateTracker; unsaved: 
   registerIoIpc(deps)
   registerProjectIpc(deps)
   const dbState = registerDbIpc(deps)
-  registerAiIpc({ ...deps, dbState })
-  return { dbState, unsaved }
+  const mcp = registerMcpIpc({ ...deps, dbState })
+  return { dbState, unsaved, mcp }
 }

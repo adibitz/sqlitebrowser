@@ -22,10 +22,8 @@
     "postui:add": "node scripts/fix-shadcn-imports.mjs"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "0.131.0",
     "@modelcontextprotocol/sdk": "1.32.1",
     "better-sqlite3": "^13.0.3",
-    "openai": "7.28.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -66,9 +64,7 @@
     "prettier-plugin-tailwindcss": "^0.8.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "react-markdown": "10.1.0",
     "react-resizable-panels": "^4.14.7",
-    "remark-gfm": "4.0.1",
     "shadcn": "^4.22.1",
     "sonner": "^2.0.8",
     "tailwindcss": "^4.3.3",

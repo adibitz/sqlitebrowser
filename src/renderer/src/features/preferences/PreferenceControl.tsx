@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/cn'
-import { AiProvidersControl } from './AiProvidersControl'
+import { McpConnectionControl } from './McpConnectionControl'
 import type { PreferenceField } from './preferencePages'
 
 interface PreferenceControlProps {
@@ -21,7 +21,7 @@ const idFor = (field: PreferenceField): string => `pref-${field.key.replace('/',
 /** One setting's label and control. */
 export function PreferenceControl({ field, value, onChange }: PreferenceControlProps) {
   const id = idFor(field)
-  if (field.kind === 'aiProviders') return <AiProvidersControl />
+  if (field.kind === 'mcpConnection') return <McpConnectionControl />
   if (field.kind === 'bool') {
     return (
       <Label className="col-span-2 gap-2 font-normal">

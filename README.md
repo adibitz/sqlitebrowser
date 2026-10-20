@@ -1,7 +1,7 @@
 # SQliteView (Electron)
 
 Electron + React + TypeScript port of [SQliteView](https://github.com/adibitz/SQLiteView) (itself a port of
-DB Browser for SQLite), with an optional AI assistant that works with the open database through MCP.
+DB Browser for SQLite), with an MCP server so Claude Code can work with the open database.
 See `PLAN.md` for the architecture and phases, `CLAUDE.md` for the project rules and `DESIGN.md` for the
 design system. The Python original lives outside this repo in `../reference/`.
 
@@ -25,19 +25,38 @@ npm run ui:add -- <component>   # add a shadcn/ui component (then restyle it to 
 The app keeps its preferences in `app.db` in Electron's `userData` folder. Set `SQLITEVIEW_USER_DATA` to use
 another folder (the e2e tests do this so they never touch your real profile).
 
-## AI assistant
+## Control it from Claude Code
 
-Off until you turn it on (at first start, or in Preferences → AI assistant). It talks to Claude (Anthropic)
-or any OpenAI-compatible server (OpenAI, OpenRouter, LM Studio, Ollama at `http://localhost:11434/v1`).
+SQliteView has an MCP server, so Claude Code (or any MCP client) can work with the open database and drive the
+window. No API key is needed in the app.
 
-- The panel (Ctrl+J) shows which model answers and lets you pick another or type any model id.
-- The model works on the open database through MCP tools: `list_tables`, `describe_table`, `sample_rows`,
-  `run_query` (only statements SQLite reports as read-only, at most 200 rows) and `run_sql`.
-- `run_sql` waits until you approve the exact SQL. Approved changes stay pending like any other edit:
-  Write changes keeps them, Revert undoes them. Read-only databases refuse them.
-- Each message includes a short description of the tab you are looking at (table, filters, SQL text).
-- Conversations are kept per database file in `app.db`; Clear forgets them. API keys are encrypted with the
-  OS keychain (safeStorage) and never sent back to the window; without a keychain they last for the session.
+1. Turn it on at first start, or in Preferences → Claude Code (MCP). It listens on `127.0.0.1` only, port
+   3940 by default.
+2. Click **Copy Claude Code command** and run it in a terminal. It adds the server for all your projects:
+
+   ```bash
+   claude mcp add --transport http --scope user sqliteview http://127.0.0.1:3940/mcp --header "Authorization: Bearer <token>"
+   ```
+
+3. Restart Claude Code. `claude mcp list` shows `sqliteview` while the app is running.
+
+Tools:
+
+| Tool                                           | What it does                                                                        |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `get_app_state`                                | The open database, uncommitted changes, open tabs (filters, search, sort, SQL text) |
+| `list_tables`, `describe_table`, `sample_rows` | Schema and sample data                                                              |
+| `run_query`                                    | One read-only statement, at most 200 rows                                           |
+| `run_sql`                                      | Changes the database; they stay uncommitted, and Revert undoes them                 |
+| `revert_changes`                               | Undoes every uncommitted change                                                     |
+| `write_changes`                                | Saves the changes to disk, after you confirm in the app                             |
+| `open_database`                                | Opens a file in the window (asks to save or discard pending changes first)          |
+| `open_table`                                   | Shows a table with filters, search and sort; returns the matching row count         |
+| `open_sql_editor`                              | Opens SQL in a new editor tab, and runs it there if asked                           |
+
+The token is made on first start and kept encrypted with the OS keychain (safeStorage); without a keychain it
+lasts for the session. **New token** in Preferences disconnects clients added with the old one. Requests from
+browsers (any `Origin` header) or for another host name are refused.
 
 ## Differences from the Python app
 
