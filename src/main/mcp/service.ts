@@ -79,13 +79,13 @@ export function createMcpService({
   }
 
   async function reconcile(stopOnly = false): Promise<void> {
-    const enabled = !stopOnly && settings.get('MCP/enabled')
-    const port = settings.get('MCP/port')
-    if (running && (!enabled || running.port !== port)) {
+    // Stopping reads no settings: on quit, app.db closes right after the stop is queued.
+    const port = !stopOnly && settings.get('MCP/enabled') ? settings.get('MCP/port') : null
+    if (running && running.port !== port) {
       await running.http.close()
       running = null
     }
-    if (!enabled) return setStatus({ state: 'off' })
+    if (port === null) return setStatus({ state: 'off' })
     if (running) return
     try {
       const http = await startMcpHttp({
