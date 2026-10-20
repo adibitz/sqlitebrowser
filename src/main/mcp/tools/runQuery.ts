@@ -8,7 +8,8 @@ export function registerRunQuery(ctx: ToolContext): void {
     {
       description:
         'Runs one read-only SQLite statement (SELECT, WITH … SELECT, read-only PRAGMA) and returns up to 200 rows. ' +
-        'Statements that change anything are refused; use run_sql for those.',
+        'Statements that change anything are refused; use run_sql for those. The rows come back to you only; to ' +
+        'show them to the user, use open_table or open_sql_editor.',
       inputSchema: { sql: z.string().min(1).max(100_000).describe('One SQLite statement that only reads') },
       annotations: { readOnlyHint: true },
     },

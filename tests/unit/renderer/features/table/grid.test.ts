@@ -116,4 +116,19 @@ describe('RowCache', () => {
     await new Promise((r) => setTimeout(r, 0))
     expect(cache.error).toBe('boom')
   })
+
+  it('still notifies after start, dispose, start (React StrictMode mounts effects twice)', async () => {
+    const cache = new RowCache(
+      async () => 0,
+      async () => [],
+    )
+    cache.start()
+    cache.dispose()
+    let notified = 0
+    cache.subscribe(() => notified++)
+    cache.start()
+    await new Promise((r) => setTimeout(r, 0))
+    expect(cache.total).toBe(0)
+    expect(notified).toBeGreaterThan(0)
+  })
 })

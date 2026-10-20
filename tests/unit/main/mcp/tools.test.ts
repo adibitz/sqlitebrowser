@@ -77,6 +77,13 @@ describe('MCP tools', () => {
     ])
   })
 
+  it('tells the client to show rows in the window', async () => {
+    const t = await setup()
+    const instructions = t.client.getInstructions() ?? ''
+    expect(instructions).toContain('open_table')
+    expect(instructions).toContain('open_sql_editor')
+  })
+
   it('reports the app state', async () => {
     const t = await setup()
     expect((await t.call('get_app_state')).json()).toEqual({

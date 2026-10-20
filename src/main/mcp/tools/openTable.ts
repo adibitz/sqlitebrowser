@@ -7,8 +7,9 @@ export function registerOpenTable(ctx: ToolContext): void {
     'open_table',
     {
       description:
-        'Shows a table or view in SQliteView with the given filters, search and sort, replacing those of its tab ' +
-        'if it is already open. Returns how many rows match.',
+        'Shows the user rows of a table or view in the SQliteView window, filtered, searched and sorted, replacing ' +
+        'those of its tab if it is already open. Use it whenever the user asks to see, list, find or filter rows. ' +
+        'Filters on different columns combine with AND. Returns how many rows match.',
       inputSchema: {
         ...tableInput,
         filters: z
@@ -16,7 +17,7 @@ export function registerOpenTable(ctx: ToolContext): void {
           .optional()
           .describe(
             'Column name to filter text, as typed in the filter row: "abc" (contains), "=IN", ">100", "<>0", ' +
-              '"=NULL", "<>NULL", "1~10" (between), "/^a.*/" (regexp)',
+              '"=NULL", "<>NULL", "=\'\'" (empty text), "<>\'\'" (not empty text), "1~10" (between), "/^a.*/" (regexp)',
           ),
         search: z.string().max(1000).optional().describe('Words to find in any column'),
         sort: z

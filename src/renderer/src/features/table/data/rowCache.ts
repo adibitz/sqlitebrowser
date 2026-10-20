@@ -38,8 +38,12 @@ export class RowCache {
     for (const l of this.listeners) l()
   }
 
-  /** Loads the row count; call once after creating the cache. */
+  /**
+   * Loads the row count; call after creating the cache. React StrictMode runs effects twice in development
+   * (start, dispose, start on the same cache), so starting again undoes dispose.
+   */
   start(): void {
+    this.disposed = false
     this.fetchCount().then(
       (n) => {
         this.total = n

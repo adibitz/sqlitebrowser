@@ -6,7 +6,9 @@ export function registerSampleRows(ctx: ToolContext): void {
   ctx.server.registerTool(
     'sample_rows',
     {
-      description: 'The first rows of a table or view, to see what its data looks like.',
+      description:
+        'The first rows of a table or view, for you to see what its data looks like. To show rows to the user, ' +
+        'use open_table.',
       inputSchema: {
         ...tableInput,
         limit: z.number().int().min(1).max(200).optional().describe('Rows, default 10'),
