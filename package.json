@@ -1,7 +1,7 @@
 {
   "name": "sqliteview",
   "productName": "SQliteView",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Browse, edit and query SQLite databases",
   "license": "GPL-3.0-or-later OR MPL-2.0",
