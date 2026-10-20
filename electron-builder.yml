@@ -1,0 +1,40 @@
+appId: in.postessia.sqliteview
+productName: SQliteView
+directories:
+  buildResources: resources
+  output: dist
+files:
+  - out/**
+  - package.json
+  - '!**/*.map'
+  # The SQLite sources are only needed to compile; the prebuilt binaries are used instead.
+  - '!node_modules/better-sqlite3/{deps,src}/**'
+# better-sqlite3 ships N-API prebuilds that run in Electron as they are; no compiler needed.
+npmRebuild: false
+asarUnpack:
+  - node_modules/better-sqlite3/prebuilds/**
+extraResources:
+  - from: resources/fonts/OFL.txt
+    to: licenses/DMSans-OFL.txt
+fileAssociations:
+  - ext: [db, sqlite, sqlite3, db3]
+    name: SQLite database
+    role: Editor
+  - ext: sqbpro
+    name: DB Browser for SQLite project
+    role: Editor
+win:
+  icon: resources/sqliteview.ico
+  target: [nsis, zip]
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+mac:
+  icon: resources/sqliteview.icns
+  category: public.app-category.developer-tools
+  target: [dmg, zip]
+linux:
+  icon: resources/sqliteview.png
+  category: Development
+  target: [AppImage, tar.gz]
+artifactName: ${productName}-${version}-${os}-${arch}.${ext}

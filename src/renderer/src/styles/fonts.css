@@ -1,0 +1,8 @@
+/* DM Sans, bundled (SIL Open Font License, see resources/fonts/OFL.txt). */
+@font-face {
+  font-family: 'DM Sans';
+  src: url('../assets/fonts/DMSans-Variable.ttf') format('truetype');
+  font-weight: 100 1000;
+  font-style: normal;
+  font-display: swap;
+}

@@ -1,0 +1,123 @@
+/*
+ * Design tokens from DESIGN.md (the source of truth). Light on :root, dark on .dark.
+ * shadcn/ui variable names (--background, --primary, …) are aliases onto the same tokens.
+ */
+
+:root,
+.light {
+  color-scheme: light;
+
+  --canvas: #f5f5f3;
+  --surface-1: #fcfcfa;
+  --surface-2: #ecece9;
+  --surface-3: #e2e2de;
+  --ink: #141412;
+  --on-ink: #fcfcfa;
+  --ink-muted: #5f5e5a;
+  --hairline: rgb(20 20 18 / 0.09);
+  --hairline-strong: rgb(20 20 18 / 0.16);
+  --hover-stroke: rgb(20 20 18 / 0.28);
+
+  --signal: #1a66d1;
+  --on-signal: #fcfcfa;
+  --signal-tint: #dde7f8;
+  --signal-ink: #1452ad;
+
+  --success: #1f8a52;
+  --success-tint: #dbe8e0;
+  --success-ink: #17663d;
+  --warning: #a86200;
+  --warning-tint: #ece3d6;
+  --warning-ink: #7a4700;
+  --destructive-base: #c8362d;
+  --destructive-tint: #f0dedb;
+  --destructive-ink: #9e2a23;
+
+  /* Plot series, one per Y column (DESIGN.md has no data palette; these come from the Python app). */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+  --chart-5: #e87ba4;
+  --chart-6: #008300;
+  --chart-7: #6250d6;
+  --chart-8: #e34948;
+
+  --elevation-subtle: 0 1px 2px rgb(20 20 18 / 0.05), 0 2px 8px -2px rgb(20 20 18 / 0.06);
+  --elevation-float: 0 1px 2px rgb(20 20 18 / 0.05), 0 16px 40px -16px rgb(20 20 18 / 0.18);
+  --elevation-modal: 0 32px 80px -24px rgb(20 20 18 / 0.28);
+  --elevation-soft:
+    0 1px 2px rgb(20 20 18 / 0.06), 0 8px 24px -6px rgb(20 20 18 / 0.16),
+    0 24px 48px -16px rgb(20 20 18 / 0.12);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --canvas: #0e0e0d;
+  --surface-1: #181817;
+  --surface-2: #222220;
+  --surface-3: #2c2c2a;
+  --ink: #f4f4f1;
+  --on-ink: #0e0e0d;
+  --ink-muted: #a1a09b;
+  --hairline: rgb(244 244 241 / 0.1);
+  --hairline-strong: rgb(244 244 241 / 0.16);
+  --hover-stroke: rgb(244 244 241 / 0.28);
+
+  --signal: #5b9dff;
+  --on-signal: #0e0e0d;
+  --signal-tint: #14203a;
+  --signal-ink: #5b9dff;
+
+  --success: #5bc88a;
+  --success-tint: #17241c;
+  --success-ink: #5bc88a;
+  --warning: #e5a54b;
+  --warning-tint: #282014;
+  --warning-ink: #e5a54b;
+  --destructive-base: #f2635a;
+  --destructive-tint: #291816;
+  --destructive-ink: #f2635a;
+
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  --chart-6: #008300;
+  --chart-7: #9085e9;
+  --chart-8: #e66767;
+
+  --elevation-subtle: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 12px -4px rgb(0 0 0 / 0.35);
+  --elevation-float: inset 0 1px 0 rgb(244 244 241 / 0.06), 0 20px 48px -20px rgb(0 0 0 / 0.7);
+  --elevation-modal: inset 0 1px 0 rgb(244 244 241 / 0.08), 0 40px 96px -24px rgb(0 0 0 / 0.8);
+  --elevation-soft: 0 8px 24px -8px rgb(0 0 0 / 0.5), 0 24px 56px -20px rgb(0 0 0 / 0.55);
+}
+
+/*
+ * Aliases are declared on every themed scope, so a nested .light/.dark (theme previews, inverse cards)
+ * resolves them against its own tokens instead of inheriting the root values.
+ */
+:root,
+.light,
+.dark {
+  --background: var(--canvas);
+  --foreground: var(--ink);
+  --card: var(--surface-1);
+  --card-foreground: var(--ink);
+  --popover: var(--surface-1);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--on-ink);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--ink);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--surface-2);
+  --accent-foreground: var(--ink);
+  --destructive: var(--destructive-base);
+  --border: var(--hairline);
+  --input: var(--hairline-strong);
+  --ring: var(--signal);
+}

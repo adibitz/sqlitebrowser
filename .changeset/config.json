@@ -1,0 +1,9 @@
+{
+  "$schema": "../node_modules/@changesets/config/schema.json",
+  "baseBranch": "main",
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "access": "restricted",
+  "privatePackages": { "version": true, "tag": true },
+  "ignore": []
+}

@@ -1,0 +1,9 @@
+out
+dist
+node_modules
+CHANGELOG.md
+.changeset/*.md
+test-results
+playwright-report
+PLAN.md
+DESIGN.md
